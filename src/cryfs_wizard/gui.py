@@ -5,8 +5,9 @@ from PyQt5.QtWidgets import (QApplication, QWizard, QWizardPage,
 from .core import CryFSManager, UserSetupError
 
 class UsernamePage(QWizardPage):
-    def __init__(self):
+    def __init__(self, ask_confirmation: bool = False):
         super().__init__()
+        self.ask_confirmation = ask_confirmation
         self.setTitle("Create New User")
         
         layout = QVBoxLayout()
@@ -89,7 +90,7 @@ class SetupWizard(QWizard):
         
     def accept(self):
         try:
-            manager = CryFSManager()
+            manager = CryFSManager(ask_confirmation=self.ask_confirmation)
             manager.setup_directories()
             
             backup_config = None
@@ -114,9 +115,12 @@ class SetupWizard(QWizard):
         except UserSetupError as e:
             QMessageBox.critical(self, "Error", str(e))
 
-def main():
+@click.command()
+@click.option('--ask/--no-ask', default=False,
+              help='Ask for confirmation before each action')
+def main(ask: bool):
     app = QApplication(sys.argv)
-    wizard = SetupWizard()
+    wizard = SetupWizard(ask_confirmation=ask)
     wizard.show()
     sys.exit(app.exec_())
 

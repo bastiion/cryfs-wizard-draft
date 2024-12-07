@@ -11,9 +11,10 @@ class UserSetupError(Exception):
     pass
 
 class CryFSManager:
-    def __init__(self):
+    def __init__(self, ask_confirmation: bool = False):
         self.config_dir = Path("/etc/cryfs-wizard")
         self.backup_config_dir = self.config_dir / "backup"
+        self.ask_confirmation = ask_confirmation
         
     def _confirm_action(self, message: str) -> bool:
         """
@@ -56,22 +57,21 @@ class CryFSManager:
             except KeyError:
                 pass
 
-            # Confirm user creation
-            if not self._confirm_action(f"Create new user '{username}'?"):
-                raise UserSetupError("User creation cancelled")
+            # Create user with confirmation if needed
+            if self.ask_confirmation:
+                if not self._confirm_action(f"Create new user '{username}'?"):
+                    raise UserSetupError("User creation cancelled")
+                if not self._confirm_action(f"Running: useradd -m {username}"):
+                    raise UserSetupError("User creation cancelled")
 
-            # Create user
-            if self._confirm_action(f"Running: useradd -m {username}"):
-                subprocess.run(['useradd', '-m', username], check=True)
-            else:
-                raise UserSetupError("User creation cancelled")
+            subprocess.run(['useradd', '-m', username], check=True)
             
             # Set password
-            if self._confirm_action("Set user password?"):
-                proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE)
-                proc.communicate(f"{username}:{password}".encode())
-            else:
+            if self.ask_confirmation and not self._confirm_action("Set user password?"):
                 raise UserSetupError("Password setup cancelled")
+                
+            proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE)
+            proc.communicate(f"{username}:{password}".encode())
             
             # Setup encrypted directory
             crypt_base = Path(f"/home/.cryfs/{username}")
@@ -86,7 +86,7 @@ class CryFSManager:
             print(f"\nCryFS setup command:\n{cryfs_command}")
             print("\nNote: When running manually, you'll need to enter the password when prompted")
             
-            if self._confirm_action("Would you like the wizard to execute this command now?"):
+            if not self.ask_confirmation or self._confirm_action("Would you like the wizard to execute this command now?"):
                 env = os.environ.copy()
                 env['CRYFS_FRONTEND'] = 'noninteractive'
                 env['CRYFS_NO_UPDATE_CHECK'] = 'true'

@@ -7,10 +7,12 @@ from .core import CryFSManager, UserSetupError
               confirmation_prompt=True, help='User password')
 @click.option('--backup/--no-backup', default=False, 
               help='Configure automatic backup')
-def main(username: str, password: str, backup: bool):
+@click.option('--ask/--no-ask', default=False,
+              help='Ask for confirmation before each action')
+def main(username: str, password: str, backup: bool, ask: bool):
     """Create a new user with encrypted home directory"""
     try:
-        manager = CryFSManager()
+        manager = CryFSManager(ask_confirmation=ask)
         manager.setup_directories()
         
         backup_config = None
