@@ -91,23 +91,22 @@ class CryFSManager:
                 env['CRYFS_FRONTEND'] = 'noninteractive'
                 env['CRYFS_NO_UPDATE_CHECK'] = 'true'
                 
+                # Get user's UID and GID
+                uid = pwd.getpwnam(username).pw_uid
+                gid = grp.getgrnam(username).gr_gid
+                
+                # Mount with correct ownership from the start
                 subprocess.run([
                     'cryfs',
                     '--config', str(config_file),
-                    '-o', 'nonempty',
+                    '-o', f'nonempty,allow_other,uid={uid},gid={gid}',
                     '--create-missing-basedir',
                     '--create-missing-mountpoint',
                     str(crypt_base),
                     str(mount_point)
                 ], input=password.encode(), check=True, env=env)
                 
-                # Set correct ownership and permissions
-                uid = pwd.getpwnam(username).pw_uid
-                gid = grp.getgrnam(username).gr_gid
-                
-                # Change ownership of mount point to user
-                subprocess.run(['chown', f'{username}:{username}', str(mount_point)], check=True)
-                # Set permissions to 700 (rwx------)
+                # Set base directory permissions
                 subprocess.run(['chmod', '700', str(mount_point)], check=True)
             else:
                 print("\nSkipping automatic CryFS setup.")
