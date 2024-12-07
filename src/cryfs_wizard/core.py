@@ -26,11 +26,12 @@ class CryFSManager:
             bool: True if user confirmed, False otherwise
         """
         while True:
-            response = input(f"{message} Your choice [y/n]: ").lower()
+            response = input(f"{message} Your choice [y/n]: ").lower().strip()
             if response in ['y', 'yes']:
                 return True
-            if response in ['n', 'no']:
+            elif response in ['n', 'no']:
                 return False
+            print("Please enter 'y' or 'n'")
         
     def setup_directories(self):
         """Create necessary configuration directories"""
