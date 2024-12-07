@@ -82,7 +82,11 @@ class CryFSManager:
             # Initialize CryFS
             config_file = self.config_dir / f"{username}_cryfs.conf"
             
-            if self._confirm_action(f"Initialize CryFS encryption for /home/{username}?"):
+            cryfs_command = f"cryfs --config {config_file} {crypt_base} {mount_point}"
+            print(f"\nCryFS setup command:\n{cryfs_command}")
+            print("\nNote: When running manually, you'll need to enter the password when prompted")
+            
+            if self._confirm_action("Would you like the wizard to execute this command now?"):
                 subprocess.run([
                     'cryfs', 
                     '--config', str(config_file),
@@ -90,7 +94,9 @@ class CryFSManager:
                     str(mount_point)
                 ], input=password.encode(), check=True)
             else:
-                raise UserSetupError("CryFS setup cancelled")
+                print("\nSkipping automatic CryFS setup.")
+                print("Please run the command manually to complete the encryption setup.")
+                return True
             
             # Setup backup if configured
             if backup_config:
