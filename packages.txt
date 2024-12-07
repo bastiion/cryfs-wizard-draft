@@ -1,0 +1,5 @@
+cryfs
+rclone
+python3-pip
+python3-venv
+sudo
