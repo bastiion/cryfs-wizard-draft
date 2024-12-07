@@ -15,6 +15,23 @@ class CryFSManager:
         self.config_dir = Path("/etc/cryfs-wizard")
         self.backup_config_dir = self.config_dir / "backup"
         
+    def _confirm_action(self, message: str) -> bool:
+        """
+        Ask for user confirmation before proceeding with an action
+        
+        Args:
+            message: The message describing the action to be confirmed
+            
+        Returns:
+            bool: True if user confirmed, False otherwise
+        """
+        while True:
+            response = input(f"{message} Your choice [y/n]: ").lower()
+            if response in ['y', 'yes']:
+                return True
+            if response in ['n', 'no']:
+                return False
+        
     def setup_directories(self):
         """Create necessary configuration directories"""
         os.makedirs(self.config_dir, exist_ok=True)
@@ -38,12 +55,22 @@ class CryFSManager:
             except KeyError:
                 pass
 
+            # Confirm user creation
+            if not self._confirm_action(f"Create new user '{username}'?"):
+                raise UserSetupError("User creation cancelled")
+
             # Create user
-            subprocess.run(['useradd', '-m', username], check=True)
+            if self._confirm_action(f"Running: useradd -m {username}"):
+                subprocess.run(['useradd', '-m', username], check=True)
+            else:
+                raise UserSetupError("User creation cancelled")
             
             # Set password
-            proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE)
-            proc.communicate(f"{username}:{password}".encode())
+            if self._confirm_action("Set user password?"):
+                proc = subprocess.Popen(['chpasswd'], stdin=subprocess.PIPE)
+                proc.communicate(f"{username}:{password}".encode())
+            else:
+                raise UserSetupError("Password setup cancelled")
             
             # Setup encrypted directory
             crypt_base = Path(f"/home/.cryfs/{username}")
@@ -54,12 +81,15 @@ class CryFSManager:
             # Initialize CryFS
             config_file = self.config_dir / f"{username}_cryfs.conf"
             
-            subprocess.run([
-                'cryfs', 
-                '--config', str(config_file),
-                str(crypt_base),
-                str(mount_point)
-            ], input=password.encode(), check=True)
+            if self._confirm_action(f"Initialize CryFS encryption for /home/{username}?"):
+                subprocess.run([
+                    'cryfs', 
+                    '--config', str(config_file),
+                    str(crypt_base),
+                    str(mount_point)
+                ], input=password.encode(), check=True)
+            else:
+                raise UserSetupError("CryFS setup cancelled")
             
             # Setup backup if configured
             if backup_config:
@@ -72,6 +102,9 @@ class CryFSManager:
     
     def _setup_backup(self, username: str, backup_config: Dict):
         """Setup rclone backup configuration"""
+        if not self._confirm_action(f"Setup automatic backup for user '{username}'?"):
+            raise UserSetupError("Backup setup cancelled")
+            
         backup_conf = self.backup_config_dir / f"{username}_rclone.conf"
         
         # Create rclone config
@@ -97,5 +130,8 @@ WantedBy=multi-user.target
             f.write(service_content)
             
         # Enable and start the service
-        subprocess.run(['systemctl', 'enable', f'backup-{username}.service'])
-        subprocess.run(['systemctl', 'start', f'backup-{username}.service'])
+        if self._confirm_action("Enable and start backup service?"):
+            subprocess.run(['systemctl', 'enable', f'backup-{username}.service'])
+            subprocess.run(['systemctl', 'start', f'backup-{username}.service'])
+        else:
+            raise UserSetupError("Backup service setup cancelled")
