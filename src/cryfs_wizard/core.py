@@ -100,6 +100,15 @@ class CryFSManager:
                     str(crypt_base),
                     str(mount_point)
                 ], input=password.encode(), check=True, env=env)
+                
+                # Set correct ownership and permissions
+                uid = pwd.getpwnam(username).pw_uid
+                gid = grp.getgrnam(username).gr_gid
+                
+                # Change ownership of mount point to user
+                subprocess.run(['chown', f'{username}:{username}', str(mount_point)], check=True)
+                # Set permissions to 700 (rwx------)
+                subprocess.run(['chmod', '700', str(mount_point)], check=True)
             else:
                 print("\nSkipping automatic CryFS setup.")
                 print("Please run the command manually to complete the encryption setup.")
