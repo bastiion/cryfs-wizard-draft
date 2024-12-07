@@ -87,12 +87,19 @@ class CryFSManager:
             print("\nNote: When running manually, you'll need to enter the password when prompted")
             
             if self._confirm_action("Would you like the wizard to execute this command now?"):
+                env = os.environ.copy()
+                env['CRYFS_FRONTEND'] = 'noninteractive'
+                env['CRYFS_NO_UPDATE_CHECK'] = 'true'
+                
                 subprocess.run([
-                    'cryfs', 
+                    'cryfs',
                     '--config', str(config_file),
+                    '-o', 'nonempty',
+                    '--create-missing-basedir',
+                    '--create-missing-mountpoint',
                     str(crypt_base),
                     str(mount_point)
-                ], input=password.encode(), check=True)
+                ], input=password.encode(), check=True, env=env)
             else:
                 print("\nSkipping automatic CryFS setup.")
                 print("Please run the command manually to complete the encryption setup.")
